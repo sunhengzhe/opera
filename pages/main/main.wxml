@@ -1,0 +1,36 @@
+<!--main.wxml-->
+<view class="container">
+  <view class="page-body">
+    <view class="title-wrap">
+      正在播放: {{operas[currentOperaIndex] && operas[currentOperaIndex].title}}
+    </view>
+    <swiper
+      class="swiper"
+      vertical="{{true}}"
+      current="{{currentOperaIndex}}"
+      bindchange="onSwiperChange"
+    >
+      <block wx:for="{{operas}}" wx:key="*this.title">
+        <swiper-item>
+          <view class="swiper-item {{item}}">
+            <video
+              id="opera-{{index}}"
+              bindended="onVideoEnded"
+              class="opera-video"
+              autoplay="{{false}}"
+              src="{{item.link}}"
+              ad-unit-id=""
+              poster-for-crawler=""
+              show-fullscreen-btn="{{false}}"
+              show-center-play-btn="{{false}}"
+            ></video>
+          </view>
+        </swiper-item>
+      </block>
+    </swiper>
+
+    <view class="record-wrap">
+      <button id="record-button"></button>
+    </view>
+  </view>
+</view>
