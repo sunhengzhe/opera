@@ -30,7 +30,11 @@
     </swiper>
 
     <view class="record-wrap">
-      <button id="record-button"></button>
+      <button
+        id="record-button"
+        bindtouchstart="startRecord"
+        bindtouchend="stopRecord"
+      ></button>
     </view>
   </view>
 </view>
