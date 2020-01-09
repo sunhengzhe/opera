@@ -12,7 +12,12 @@
 		"beforeUpload": "npm run compile"
 	},
 	"setting": {
-		"newFeature": true
+		"urlCheck": false,
+		"es6": true,
+		"postcss": true,
+		"minified": true,
+		"newFeature": true,
+		"autoAudits": false
 	},
 	"appid": "wx21384909fb1f14e3",
 	"condition": {}

@@ -5,7 +5,7 @@ interface IOpera {
 }
 
 interface IPageData {
-  operas: Array<IOpera>;
+  operas: IOpera[];
   currentOperaIndex: number;
   recorderManager: wx.RecorderManager;
   isRecording: boolean;
@@ -21,6 +21,11 @@ interface IPage {
   stopRecord(): void;
   initOperas(): void;
   initRecorders(): void;
+}
+
+interface IOperaDTO {
+  readonly title: string;
+  readonly link: string;
 }
 
 Page<IPageData, IPage>({
@@ -46,19 +51,25 @@ Page<IPageData, IPage>({
 
   initOperas() {
     // fetch a page
-    const operas: Array<IOpera> = [];
-    for (let i = 0; i < 5; i++) {
-      operas.push({
-        title: "黄梅戏" + i,
-        link:
-          "http://wxsnsdy.tc.qq.com/105/20210/snsdyvideodownload?filekey=30280201010421301f0201690402534804102ca905ce620b1241b726bc41dcff44e00204012882540400&bizid=1023&hy=SH&fileparam=302c020101042530230204136ffd93020457e3c4ff02024ef202031e8d7f02030f42400204045a320a0201000400",
-        context: wx.createVideoContext(`opera-${i}`)
-      });
-    }
+    wx.request({
+      url: 'http://localhost:3000/operas',
+      data: {
+        pageIndex: 0,
+        pageSize: 5
+      },
+      success: (res) => {
+        const operaList = <IOperaDTO[]>res.data;
+        const operas: IOpera[] = operaList.map((dto, i) => ({
+          title: dto.title,
+          link: dto.link,
+          context: wx.createVideoContext(`opera-${i}`)
+        }));
 
-    this.setData!({ operas: operas }, () => {
-      this.data.operas[0].context.play();
-    });
+        this.setData!({ operas: operas }, () => {
+          this.data.operas[0].context.play();
+        });
+      }
+    })
   },
 
   initRecorders() {
@@ -106,6 +117,12 @@ Page<IPageData, IPage>({
   },
 
   onVideoEnded() {
+    const { currentOperaIndex, operas } = this.data;
+
+    if (currentOperaIndex === operas.length - 1) {
+      return;
+    }
+
     this.switchToNextVideo(this.data.currentOperaIndex + 1);
   },
 
@@ -125,7 +142,7 @@ Page<IPageData, IPage>({
       sampleRate: 16000,
       numberOfChannels: 1,
       encodeBitRate: 64000,
-      format: "mp3",
+      format: 'PCM',
       frameSize: 50
     } as wx.RecorderManagerStartOption;
 
