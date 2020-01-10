@@ -1,4 +1,5 @@
 interface IOpera {
+  readonly id: number;
   readonly link: string;
   readonly title: string;
   readonly context: wx.VideoContext;
@@ -7,26 +8,35 @@ interface IOpera {
 interface IPageData {
   operas: IOpera[];
   currentOperaIndex: number;
-  recorderManager: wx.RecorderManager;
-  isRecording: boolean;
-  recordStartTime: Date;
 }
 
 interface IPage {
   data: IPageData;
+  recorderManager: wx.RecorderManager;
+  isRecording: boolean;
+  recordStartTime: Date;
+  currentPageIndex: number;
   onSwiperChange(e: any): void;
   onVideoEnded(): void;
   switchToNextVideo(nextIndex: number): void;
   startRecord(): void;
   stopRecord(): void;
-  initOperas(): void;
+  requestOperas(findOperasDTO: IFindOperasDTO): void;
   initRecorders(): void;
 }
 
 interface IOperaDTO {
+  readonly id: number;
   readonly title: string;
   readonly link: string;
 }
+
+interface IFindOperasDTO {
+  pageIndex: number;
+  pageSize?: number;
+}
+
+const PAGE_SIZE = 5;
 
 Page<IPageData, IPage>({
   onShareAppMessage() {
@@ -36,35 +46,38 @@ Page<IPageData, IPage>({
     };
   },
 
+  recorderManager: wx.getRecorderManager(),
+  isRecording: false,
+  recordStartTime: new Date(),
+  currentPageIndex: 0,
+
   data: {
     currentOperaIndex: 0,
     operas: [],
-    recorderManager: wx.getRecorderManager(),
-    isRecording: false,
-    recordStartTime: new Date()
   },
 
   onLoad() {
-    this.initOperas();
+    this.requestOperas({ pageIndex: this.currentPageIndex });
     this.initRecorders();
   },
 
-  initOperas() {
+  requestOperas(findOperasDTO: IFindOperasDTO) {
     // fetch a page
     wx.request({
-      url: 'http://localhost:3000/operas',
+      url: 'http://10.8.96.196:3000/operas',
       data: {
-        pageIndex: 0,
-        pageSize: 5
+        pageIndex: findOperasDTO.pageIndex,
+        pageSize: PAGE_SIZE
       },
       success: (res) => {
-        const operaList = <IOperaDTO[]>res.data;
-        const operas: IOpera[] = operaList.map((dto, i) => ({
+        const newOperas = (<IOperaDTO[]>res.data).map(dto => ({
+          id: dto.id,
           title: dto.title,
           link: dto.link,
-          context: wx.createVideoContext(`opera-${i}`)
+          context: wx.createVideoContext(`opera-${dto.id}`)
         }));
 
+        const operas: IOpera[] = this.data.operas.concat(newOperas);
         this.setData!({ operas: operas }, () => {
           this.data.operas[0].context.play();
         });
@@ -72,8 +85,51 @@ Page<IPageData, IPage>({
     })
   },
 
+  switchToNextVideo(nextIndex: number) {
+    const { currentOperaIndex, operas } = this.data;
+    const { currentPageIndex } = this;
+
+    const prevIndex = currentOperaIndex;
+    // 停止上一页的视频
+    operas[prevIndex].context.seek(0);
+    operas[prevIndex].context.pause();
+
+    this.setData!(
+      {
+        currentOperaIndex: nextIndex
+      },
+      () => {
+        // 开始当前页的视频
+        operas[nextIndex].context.play();
+
+        // 请求下一页
+        const threshold = operas.length - Math.ceil(PAGE_SIZE / 2);
+
+        if (nextIndex === threshold) {
+          const nextPageIndex = currentPageIndex + 1;
+          this.currentPageIndex = nextPageIndex;
+          this.requestOperas({ pageIndex: nextPageIndex });
+        }
+      }
+    );
+  },
+
+  onSwiperChange(e: any) {
+    this.switchToNextVideo(e.detail.current);
+  },
+
+  onVideoEnded() {
+    const { currentOperaIndex, operas } = this.data;
+
+    if (currentOperaIndex === operas.length - 1) {
+      return;
+    }
+
+    this.switchToNextVideo(this.data.currentOperaIndex + 1);
+  },
+
   initRecorders() {
-    const { recorderManager } = this.data;
+    const { recorderManager } = this;
 
     recorderManager.onStop(res => {
       console.log(res);
@@ -95,39 +151,8 @@ Page<IPageData, IPage>({
     });
   },
 
-  switchToNextVideo(nextIndex: number) {
-    const prevIndex = this.data.currentOperaIndex;
-    // 停止上一页的视频
-    this.data.operas[prevIndex].context.seek(0);
-    this.data.operas[prevIndex].context.pause();
-
-    this.setData!(
-      {
-        currentOperaIndex: nextIndex
-      },
-      () => {
-        // 开始当前页的视频
-        this.data.operas[nextIndex].context.play();
-      }
-    );
-  },
-
-  onSwiperChange(e: any) {
-    this.switchToNextVideo(e.detail.current);
-  },
-
-  onVideoEnded() {
-    const { currentOperaIndex, operas } = this.data;
-
-    if (currentOperaIndex === operas.length - 1) {
-      return;
-    }
-
-    this.switchToNextVideo(this.data.currentOperaIndex + 1);
-  },
-
   startRecord() {
-    const { recorderManager, isRecording } = this.data;
+    const { recorderManager, isRecording } = this;
 
     if (isRecording) {
       return;
@@ -135,7 +160,8 @@ Page<IPageData, IPage>({
 
     console.log("record start");
 
-    this.setData!({ isRecording: true, recordStartTime: new Date() });
+    this.isRecording = true;
+    this.recordStartTime = new Date();
 
     const options = {
       duration: 10000,
@@ -150,7 +176,7 @@ Page<IPageData, IPage>({
   },
 
   stopRecord() {
-    const { recorderManager, isRecording, recordStartTime } = this.data;
+    const { recorderManager, isRecording, recordStartTime } = this;
 
     if (!isRecording) {
       return;
@@ -165,7 +191,7 @@ Page<IPageData, IPage>({
 
     console.log("record end ", duration);
 
-    this.setData!({ isRecording: false });
+    this.isRecording = false;
 
     recorderManager.stop();
   }

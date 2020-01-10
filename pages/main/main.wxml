@@ -8,13 +8,13 @@
       class="swiper"
       vertical="{{true}}"
       current="{{currentOperaIndex}}"
-      bindchange="onSwiperChange"
+      bindanimationfinish="onSwiperChange"
     >
       <block wx:for="{{operas}}" wx:key="*this.title">
         <swiper-item>
-          <view class="swiper-item {{item}}">
+          <view class="swiper-item">
             <video
-              id="opera-{{index}}"
+              id="opera-{{item.id}}"
               bindended="onVideoEnded"
               class="opera-video"
               autoplay="{{false}}"
